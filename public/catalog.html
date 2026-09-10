@@ -60,6 +60,7 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-transform: uppercase;
+      cursor: pointer;
     }
 
     .main-container { max-width: 650px; margin: 0 auto; padding: 20px 16px; }
@@ -124,7 +125,7 @@
 <body>
 
   <header class="header">
-    <div class="brand-logo">COOLX PAY</div>
+    <div class="brand-logo" onclick="location.href='index.html'">COOLX PAY</div>
     <div style="font-family: var(--font-brand); font-size: 0.85rem; color: var(--accent-cyan);">КАТАЛОГ</div>
   </header>
 
@@ -132,7 +133,7 @@
     <input type="text" id="search-input" class="search-box" placeholder="Поиск по названию или категории..." oninput="filterItems()">
 
     <div class="goods-grid" id="catalog-list">
-      <div class="empty-state">Загрузка товаров из Supabase...</div>
+      <div class="empty-state">Загрузка товаров...</div>
     </div>
   </main>
 
@@ -145,33 +146,27 @@
   </nav>
 
   <script>
-let supabaseClient = null;
-
-  async function startApp() {
-    try {
-      // 1. Берем ключи из Vercel API
-      const res = await fetch('/api/config');
-      const config = await res.json();
-
-      // 2. Инициализируем Supabase
-      supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
-
-      // 3. Запускаем загрузку данных на странице
-      if (typeof loadRecentItems === 'function') loadRecentItems();
-      if (typeof loadCatalog === 'function') loadCatalog();
-      if (typeof initProfilePage === 'function') initProfilePage();
-      if (typeof initFinances === 'function') initFinances();
-    } catch (err) {
-      console.error("Ошибка загрузки конфига:", err);
-    }
-  }
-
-  // Запуск при загрузке
-  document.addEventListener('DOMContentLoaded', startApp);
-
+    let supabaseClient = null;
     let allItems = [];
 
+    async function initApp() {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+
+        supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+          auth: { persistSession: false }
+        });
+
+        loadCatalog();
+      } catch (err) {
+        console.error("Ошибка инициализации Supabase:", err);
+      }
+    }
+
     async function loadCatalog() {
+      if (!supabaseClient) return;
+
       const { data, error } = await supabaseClient
         .from('items')
         .select('*, profiles(username)')
@@ -218,7 +213,7 @@ let supabaseClient = null;
       renderItems(filtered);
     }
 
-    loadCatalog();
+    document.addEventListener('DOMContentLoaded', initApp);
   </script>
   
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
