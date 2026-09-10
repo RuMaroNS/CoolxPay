@@ -218,8 +218,9 @@
   </nav>
 
   <script>
-    const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT.supabase.co';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    // Подхватываем переданные в окружении переменные / конфиг
+    const SUPABASE_URL = window.SUPABASE_URL || SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let isOwner = false;
@@ -229,7 +230,7 @@
     async function initProfilePage() {
       // 1. Получаем текущего авторизованного сессией юзера
       const { data: { user } } = await supabaseClient.auth.getUser();
-      currentAuthUser = user?.id || 'demo_my_id'; // Резерв для теста
+      currentAuthUser = user?.id || 'demo_my_id'; 
 
       // 2. Достаем ID из URL вида profile.html?id=20577142
       const urlParams = new URLSearchParams(window.location.search);
@@ -307,7 +308,6 @@
       const container = document.getElementById('tabs-container');
 
       if (isOwner) {
-        // Твои табы
         container.innerHTML = `
           <button class="tab-btn active" onclick="switchTab('active_items', this)">Активные лоты</button>
           <button class="tab-btn" onclick="switchTab('closed_items', this)">Завершенные лоты</button>
@@ -315,7 +315,6 @@
           <button class="tab-btn" onclick="switchTab('left_reviews', this)">Оставленные отзывы</button>
         `;
       } else {
-        // Табы чужого профиля
         container.innerHTML = `
           <button class="tab-btn active" onclick="switchTab('active_items', this)">Активные лоты</button>
           <button class="tab-btn" onclick="switchTab('received_reviews', this)">Отзывы профиля</button>
@@ -388,10 +387,7 @@
     initProfilePage();
   </script>
   
-  <!-- Защищенная подгрузка Telegram SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
-
-  <!-- Подключаем чистые имена JS без дефисов -->
   <script src="/api/apiclient.js"></script>
   <script src="/api/tgapp.js"></script>
   <script src="/api/profilelogic.js"></script>
