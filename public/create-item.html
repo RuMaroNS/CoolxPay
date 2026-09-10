@@ -28,7 +28,7 @@
     body { background-color: var(--bg-main); color: var(--text-white); min-height: 100vh; padding-bottom: 40px; }
 
     .header { background: rgba(5, 7, 10, 0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--card-border); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
-    .brand-logo { font-family: var(--font-brand); font-size: 1.1rem; font-weight: 900; background: var(--grad-coolx); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .brand-logo { font-family: var(--font-brand); font-size: 1.1rem; font-weight: 900; background: var(--grad-coolx); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; }
 
     .main-container { max-width: 650px; margin: 0 auto; padding: 20px 16px; }
 
@@ -74,11 +74,27 @@
   </main>
 
   <script>
-    const SUPABASE_URL = window.SUPABASE_URL || SUPABASE_URL;
-    const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let supabaseClient = null;
+
+    async function initApp() {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+
+        supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+          auth: { persistSession: false }
+        });
+      } catch (err) {
+        console.error("Ошибка инициализации Supabase:", err);
+      }
+    }
 
     async function publishItem() {
+      if (!supabaseClient) {
+        alert('Ошибка инициализации сервиса. Попробуйте обновить страницу.');
+        return;
+      }
+
       const { data: { user } } = await supabaseClient.auth.getUser();
       const sellerId = user?.id || 'demo_user';
 
@@ -108,6 +124,8 @@
         alert('Ошибка при публикации лота');
       }
     }
+
+    document.addEventListener('DOMContentLoaded', initApp);
   </script>
   
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
