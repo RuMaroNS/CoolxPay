@@ -229,22 +229,30 @@
     }
 
     async function initProfilePage() {
-      if (!supabaseClient) return;
+        if (!supabaseClient) return;
 
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      const currentAuthUser = user?.id || 'demo_my_id'; 
+        // Берем ID текущего авторизованного пользователя из localStorage
+        const currentAuthUser = localStorage.getItem('coolx_user_id');
 
-      const urlParams = new URLSearchParams(window.location.search);
-      targetUserId = urlParams.get('id');
+        const urlParams = new URLSearchParams(window.location.search);
+        targetUserId = urlParams.get('id');
 
-      if (!targetUserId || targetUserId === currentAuthUser) {
-        isOwner = true;
-        targetUserId = currentAuthUser;
-      }
+        // Если в URL нет параметра id, значит, пользователь открыл свой собственный профиль
+        if (!targetUserId) {
+            if (!currentAuthUser) {
+                // Если в localStorage вообще ничего нет — отправляем на страницу авторизации
+                window.location.href = 'auth.html';
+                return;
+            }
+            targetUserId = currentAuthUser;
+        }
 
-      await loadUserProfileData();
-      renderTabs();
-      switchTab('active_items');
+        // Определяем, является ли этот профиль вашим собственным
+        isOwner = (targetUserId === currentAuthUser);
+
+        await loadUserProfileData();
+        renderTabs();
+        switchTab('active_items');
     }
 
     async function loadUserProfileData() {
