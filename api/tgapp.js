@@ -1,7 +1,6 @@
 export default function handler(req, res) {
   res.setHeader('Content-Type', 'application/javascript');
   res.status(200).send(`
-
 // js/tgapp.js
 
 function getTgUser() {
@@ -16,7 +15,7 @@ function getTgUser() {
 
   return {
     id: String(user.id),
-    username: user.username ? `@${user.username}` : (user.first_name || `User_${user.id}`),
+    username: user.username ? \`@\${user.username}\` : (user.first_name || \`User_\${user.id}\`),
     avatar_url: user.photo_url || ''
   };
 }
@@ -51,6 +50,5 @@ async function syncTgUserWithSupabase(supabaseClient) {
 
   return tgUser.id;
 }
-
-`);
+  `);
 }
