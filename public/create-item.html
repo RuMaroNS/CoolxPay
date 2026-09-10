@@ -109,14 +109,16 @@
       }
     }
   </script>
-  <!-- 1. SDK Supabase и Telegram WebApp -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Защищенная подгрузка Telegram SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
 
-  <!-- 2. Твои клиентские JS-скрипты из папки /js -->
-  <script src="/js/api-client.js"></script>
-  <script src="/js/tg-app.js"></script>
-  <script src="/js/profile-logic.js"></script>
-  <script src="/js/catalog-logic.js"></script>
+  <!-- Подключаем чистые имена JS без дефисов -->
+  <script src="/js/apiclient.js"></script>
+  <script src="/js/tgapp.js"></script>
+  <script src="/js/profilelogic.js"></script>
+  <script src="/js/cataloglogic.js"></script>
+</body>
 </body>
 </html>
