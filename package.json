@@ -1,9 +1,6 @@
 {
   "name": "coolx-pay",
   "version": "1.0.0",
-  "scripts": {
-    "build": "mkdir -p public/js && cp api/apiclient.js api/tgapp.js api/profilelogic.js api/cataloglogic.js public/js/"
-  },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "telegraf": "^4.15.3"
