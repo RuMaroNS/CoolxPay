@@ -1,3 +1,7 @@
+export default function handler(req, res) {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.status(200).send(`
+
 // js/tgapp.js
 
 function getTgUser() {
@@ -46,4 +50,7 @@ async function syncTgUserWithSupabase(supabaseClient) {
   }
 
   return tgUser.id;
+}
+
+`);
 }
