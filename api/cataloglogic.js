@@ -1,4 +1,4 @@
-// js/catalog-logic.js
+// js/cataloglogic.js
 
 async function loadCatalogItems(supabaseClient, category = null) {
   let query = supabaseClient
