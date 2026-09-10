@@ -90,39 +90,44 @@
     }
 
     async function publishItem() {
-      if (!supabaseClient) {
-        alert('Ошибка инициализации сервиса. Попробуйте обновить страницу.');
-        return;
-      }
+        if (!supabaseClient) {
+            alert('Ошибка инициализации сервиса. Попробуйте обновить страницу.');
+            return;
+        }
 
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      const sellerId = user?.id || 'demo_user';
+        // Берем ID продавца из localStorage
+        const sellerId = localStorage.getItem('coolx_user_id');
+        if (!sellerId) {
+            window.location.href = 'auth.html';
+            return;
+        }
 
-      const category = document.getElementById('item-category').value;
-      const title = document.getElementById('item-title').value.trim();
-      const description = document.getElementById('item-desc').value.trim();
-      const price = parseInt(document.getElementById('item-price').value);
+        const category = document.getElementById('item-category').value;
+        const title = document.getElementById('item-title').value.trim();
+        const description = document.getElementById('item-desc').value.trim();
+        const price = parseInt(document.getElementById('item-price').value);
 
-      if (!title || !description || !price || price <= 0) {
-        alert('Заполните все поля корректно!');
-        return;
-      }
+        if (!title || !description || !price || price <= 0) {
+            alert('Заполните все поля корректно!');
+            return;
+        }
 
-      const { error } = await supabaseClient.from('items').insert({
-        seller_id: sellerId,
-        category: category,
-        title: title,
-        description: description,
-        price_stars: price,
-        status: 'active'
-      });
+        const { error } = await supabaseClient.from('items').insert({
+            seller_id: sellerId,
+            category: category,
+            title: title,
+            description: description,
+            price_stars: price,
+            status: 'active'
+        });
 
-      if (!error) {
-        alert('Лот успешно опубликован!');
-        location.href = 'catalog.html';
-      } else {
-        alert('Ошибка при публикации лота');
-      }
+        if (!error) {
+            alert('Лот успешно опубликован!');
+            location.href = 'catalog.html';
+        } else {
+            console.error(error);
+            alert('Ошибка при публикации лота');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', initApp);
