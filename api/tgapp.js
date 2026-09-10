@@ -1,4 +1,4 @@
-// js/tg-app.js
+// js/tgapp.js
 
 function getTgUser() {
   const tg = window.Telegram?.WebApp;
