@@ -1,4 +1,4 @@
-// js/profile-logic.js
+// js/profilelogic.js
 
 async function renderProfile(supabaseClient, targetUserId, currentUserId) {
   const isOwner = (!targetUserId || targetUserId === currentUserId);
