@@ -145,9 +145,29 @@
   </nav>
 
   <script>
-    const SUPABASE_URL = window.SUPABASE_URL || SUPABASE_URL;
-    const SUPABASE_KEY = window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let supabaseClient = null;
+
+  async function startApp() {
+    try {
+      // 1. Берем ключи из Vercel API
+      const res = await fetch('/api/config');
+      const config = await res.json();
+
+      // 2. Инициализируем Supabase
+      supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+
+      // 3. Запускаем загрузку данных на странице
+      if (typeof loadRecentItems === 'function') loadRecentItems();
+      if (typeof loadCatalog === 'function') loadCatalog();
+      if (typeof initProfilePage === 'function') initProfilePage();
+      if (typeof initFinances === 'function') initFinances();
+    } catch (err) {
+      console.error("Ошибка загрузки конфига:", err);
+    }
+  }
+
+  // Запуск при загрузке
+  document.addEventListener('DOMContentLoaded', startApp);
 
     let allItems = [];
 
