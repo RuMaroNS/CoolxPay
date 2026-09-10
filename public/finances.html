@@ -122,35 +122,39 @@
     }
 
     async function initFinances() {
-      if (!supabaseClient) return;
+        if (!supabaseClient) return;
 
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      currentUserId = user?.id || 'demo_user';
+        // Берем ID из localStorage вместо Supabase Auth
+        currentUserId = localStorage.getItem('coolx_user_id');
+        if (!currentUserId) {
+            window.location.href = 'auth.html'; // Если не авторизован — на вход
+            return;
+        }
 
-      const { data: profile } = await supabaseClient.from('profiles').select('balance_stars').eq('id', currentUserId).single();
-      if (profile) {
-        document.getElementById('my-stars-balance').innerText = `★ ${profile.balance_stars || 0}`;
-      }
+        const { data: profile } = await supabaseClient.from('profiles').select('balance_stars').eq('id', currentUserId).single();
+        if (profile) {
+            document.getElementById('my-stars-balance').innerText = `★ ${profile.balance_stars || 0}`;
+        }
 
-      const { data: transactions } = await supabaseClient.from('transactions').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
-      const container = document.getElementById('history-box');
+        const { data: transactions } = await supabaseClient.from('transactions').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
+        const container = document.getElementById('history-box');
 
-      if (!transactions || transactions.length === 0) {
-        container.innerHTML = `<div style="text-align: center; color: var(--text-gray); font-size: 0.85rem;">История транзакций пуста</div>`;
-        return;
-      }
+        if (!transactions || transactions.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-gray); font-size: 0.85rem;">История транзакций пуста</div>`;
+            return;
+        }
 
-      container.innerHTML = transactions.map(t => `
-        <div class="history-item">
-          <div>
-            <div class="history-type">${t.type_title}</div>
-            <div class="history-date">${new Date(t.created_at).toLocaleDateString()}</div>
-          </div>
-          <div class="history-val" style="color: ${t.amount > 0 ? '#10B981' : '#EF4444'};">
-            ${t.amount > 0 ? '+' : ''}${t.amount} ★
-          </div>
-        </div>
-      `).join('');
+        container.innerHTML = transactions.map(t => `
+            <div class="history-item">
+                <div>
+                    <div class="history-type">${t.type_title}</div>
+                    <div class="history-date">${new Date(t.created_at).toLocaleDateString()}</div>
+                </div>
+                <div class="history-val" style="color: ${t.amount > 0 ? '#10B981' : '#EF4444'};">
+                    ${t.amount > 0 ? '+' : ''}${t.amount} ★
+                </div>
+            </div>
+        `).join('');
     }
 
     async function requestPayout() {
