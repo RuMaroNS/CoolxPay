@@ -50,7 +50,6 @@
 
     .main-container { max-width: 650px; margin: 0 auto; padding: 20px 16px; }
 
-    /* Баннер гаранта */
     .hero-banner {
       background: linear-gradient(135deg, rgba(121, 40, 202, 0.3) 0%, rgba(255, 0, 128, 0.2) 100%);
       border: 1px solid var(--card-border-glow); border-radius: 20px; padding: 20px;
@@ -65,14 +64,12 @@
       color: #fff; font-family: var(--font-brand); font-size: 0.8rem; cursor: pointer;
     }
 
-    /* Категории */
     .section-title { font-family: var(--font-brand); font-size: 0.9rem; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .categories-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
     .cat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 8px; text-align: center; cursor: pointer; }
     .cat-icon { font-size: 1.4rem; margin-bottom: 4px; }
     .cat-name { font-size: 0.7rem; font-weight: 600; color: var(--text-gray); }
 
-    /* Свежие лоты */
     .goods-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .coolx-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; }
     .card-category { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--accent-pink); margin-bottom: 6px; }
@@ -134,12 +131,12 @@
   </nav>
 
   <script>
-    const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT.supabase.co';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_URL = window.SUPABASE_URL || SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     async function loadRecentItems() {
-      const { data: items } = await supabase
+      const { data: items } = await supabaseClient
         .from('items')
         .select('*')
         .eq('status', 'active')
@@ -167,12 +164,8 @@
 
     loadRecentItems();
   </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
-  <!-- Защищенная подгрузка Telegram SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
-
-  <!-- Подключаем чистые имена JS без дефисов -->
   <script src="/api/apiclient.js"></script>
   <script src="/api/tgapp.js"></script>
   <script src="/api/profilelogic.js"></script>
