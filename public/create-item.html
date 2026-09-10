@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Coolx Pay — Создать лот</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Unbounded:wght@700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg-main: #05070a;
+      --card-bg: rgba(15, 20, 31, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-pink: #FF0080;
+      --accent-cyan: #00DFD8;
+      --grad-coolx: linear-gradient(135deg, #7928CA 0%, #FF0080 100%);
+      --text-white: #FFFFFF;
+      --text-gray: #94A3B8;
+      --font-brand: 'Unbounded', sans-serif;
+      --font-main: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-main); }
+    body { background-color: var(--bg-main); color: var(--text-white); min-height: 100vh; padding-bottom: 40px; }
+
+    .header { background: rgba(5, 7, 10, 0.85); backdrop-filter: blur(16px); border-bottom: 1px solid var(--card-border); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .brand-logo { font-family: var(--font-brand); font-size: 1.1rem; font-weight: 900; background: var(--grad-coolx); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+    .main-container { max-width: 650px; margin: 0 auto; padding: 20px 16px; }
+
+    .form-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 20px; }
+    .label { font-size: 0.8rem; font-weight: 700; color: var(--text-gray); margin-bottom: 6px; display: block; text-transform: uppercase; }
+    .input-field, .select-field, .textarea-field {
+      width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--card-border);
+      border-radius: 12px; padding: 12px; color: #fff; font-size: 0.9rem; outline: none; margin-bottom: 16px;
+    }
+
+    .textarea-field { height: 100px; resize: none; }
+    .publish-btn { width: 100%; background: var(--grad-coolx); border: none; padding: 16px; border-radius: 12px; color: #fff; font-family: var(--font-brand); font-size: 0.85rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="brand-logo" onclick="location.href='index.html'">COOLX PAY</div>
+    <div onclick="history.back()" style="color: var(--text-gray); cursor: pointer; font-size: 0.85rem;">Отмена</div>
+  </header>
+
+  <main class="main-container">
+    <div class="form-box">
+      <span class="label">Категория</span>
+      <select id="item-category" class="select-field">
+        <option value="Roblox" style="color: #000;">Roblox</option>
+        <option value="Telegram" style="color: #000;">Telegram</option>
+        <option value="Скрипты" style="color: #000;">Скрипты</option>
+        <option value="Другое" style="color: #000;">Другое</option>
+      </select>
+
+      <span class="label">Название лота</span>
+      <input type="text" id="item-title" class="input-field" placeholder="Например: Fruit Notifier Blox Fruits">
+
+      <span class="label">Описание</span>
+      <textarea id="item-desc" class="textarea-field" placeholder="Укажите подробности лота, инструкции или гарантии..."></textarea>
+
+      <span class="label">Цена (в Telegram Stars)</span>
+      <input type="number" id="item-price" class="input-field" placeholder="100">
+
+      <button class="publish-btn" onclick="publishItem()">ОПУБЛИКОВАТЬ ЛОТ</button>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function publishItem() {
+      const { data: { user } } = await supabase.auth.getUser();
+      const sellerId = user?.id || 'demo_user';
+
+      const category = document.getElementById('item-category').value;
+      const title = document.getElementById('item-title').value.trim();
+      const description = document.getElementById('item-desc').value.trim();
+      const price = parseInt(document.getElementById('item-price').value);
+
+      if (!title || !description || !price || price <= 0) {
+        alert('Заполните все поля корректно!');
+        return;
+      }
+
+      const { error } = await supabase.from('items').insert({
+        seller_id: sellerId,
+        category: category,
+        title: title,
+        description: description,
+        price_stars: price,
+        status: 'active'
+      });
+
+      if (!error) {
+        alert('Лот успешно опубликован!');
+        location.href = 'catalog.html';
+      } else {
+        alert('Ошибка при публикации лота');
+      }
+    }
+  </script>
+</body>
+</html>
