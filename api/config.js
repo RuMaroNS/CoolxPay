@@ -1,11 +1,12 @@
 export default function handler(req, res) {
-    if (req.method !== 'GET') {
-        return res.status(405).json({ error: 'Method not allowed' });
-    }
-
-    // Отдаем переменные, заведенные в панели Vercel
-    return res.status(200).json({
-        supabaseUrl: process.env.SUPABASE_URL,
-        supabaseAnonKey: process.env.SUPABASE_ANON_KEY
-    });
+    // Разрешаем браузерам читать скрипт
+    res.setHeader('Content-Type', 'application/javascript');
+    
+    // Записываем ключи прямо в window до того, как сработает код страниц
+    const jsCode = `
+        window.SUPABASE_URL = "${process.env.SUPABASE_URL || ''}";
+        window.SUPABASE_ANON_KEY = "${process.env.SUPABASE_ANON_KEY || ''}";
+    `;
+    
+    return res.status(200).send(jsCode);
 }
