@@ -1,3 +1,7 @@
+export default function handler(req, res) {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.status(200).send(`
+
 // js/profilelogic.js
 
 async function renderProfile(supabaseClient, targetUserId, currentUserId) {
@@ -63,4 +67,7 @@ async function renderProfile(supabaseClient, targetUserId, currentUserId) {
   }
 
   return { isOwner, activeId };
+}
+
+`);
 }
