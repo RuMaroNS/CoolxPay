@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Coolx Pay — Авторизация</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Unbounded:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --bg-main: #05070a;
+            --card-bg: rgba(15, 20, 31, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --card-border-glow: rgba(121, 40, 202, 0.5);
+            --accent-pink: #FF0080;
+            --accent-cyan: #00DFD8;
+            --star-color: #FFB800;
+            --grad-coolx: linear-gradient(135deg, #7928CA 0%, #FF0080 100%);
+            --text-white: #FFFFFF;
+            --text-gray: #94A3B8;
+            --font-brand: 'Unbounded', sans-serif;
+            --font-main: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-main); -webkit-tap-highlight-color: transparent; }
+
+        body.auth-body {
+            background-color: var(--bg-main);
+            color: var(--text-white);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(121, 40, 202, 0.18) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(255, 0, 128, 0.15) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 420px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+        }
+
+        .auth-logo {
+            font-family: var(--font-brand);
+            font-size: 1.2rem;
+            font-weight: 900;
+            background: var(--grad-coolx);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .auth-container h2 {
+            font-family: var(--font-brand);
+            font-size: 1.05rem;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .auth-desc {
+            font-size: 0.82rem;
+            color: var(--text-gray);
+            text-align: center;
+            line-height: 1.4;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 14px;
+        }
+
+        .auth-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 14px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+            text-align: center;
+            letter-spacing: 2px;
+            transition: border-color 0.2s;
+        }
+
+        .auth-input:focus {
+            border-color: var(--card-border-glow);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: var(--grad-coolx);
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            color: #fff;
+            font-family: var(--font-brand);
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary:active {
+            opacity: 0.85;
+        }
+
+        .success-text {
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            text-align: center;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .error-msg {
+            margin-top: 14px;
+            font-size: 0.78rem;
+            color: #EF4444;
+            text-align: center;
+            min-height: 18px;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.78rem;
+            color: var(--text-gray);
+            text-decoration: none;
+        }
+        .back-link:hover { color: #fff; }
+    </style>
+</head>
+<body class="auth-body">
+
+    <div class="auth-container">
+        <div class="auth-logo" onclick="location.href='index.html'" style="cursor: pointer;">Coolx Pay</div>
+        <h2>Вход через Telegram</h2>
+        <p class="auth-desc">Напишите нашему боту в Telegram команду для получения кода подтверждения.</p>
+        
+        <!-- Шаг 1: Ввод кода -->
+        <div id="step-code">
+            <div class="input-group">
+                <input type="text" id="otp-input" class="auth-input" placeholder="• • • • • •" maxlength="6">
+            </div>
+            <button id="verify-btn" class="btn-primary" onclick="verifyOtpCode()">ПОДТВЕРДИТЬ КОД</button>
+        </div>
+
+        <!-- Шаг 2: Создание юзернейма (если новый пользователь) -->
+        <div id="step-register" style="display: none;">
+            <p class="success-text">Код подтвержден! Придумайте никнейм:</p>
+            <div class="input-group">
+                <input type="text" id="username-input" class="auth-input" placeholder="например: cool_user" style="letter-spacing: normal;">
+            </div>
+            <button id="register-btn" class="btn-primary" onclick="completeRegistration()">ЗАВЕРШИТЬ</button>
+        </div>
+
+        <div id="auth-error" class="error-msg"></div>
+        <a href="index.html" class="back-link">← На главную</a>
+    </div>
+
+    <!-- Логика авторизации -->
+    <script>
+        let supabaseClient = null;
+        let verifiedTelegramData = null;
+
+        async function initAuth() {
+            try {
+                const res = await fetch('/api/config');
+                const config = await res.json();
+                supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+            } catch (err) {
+                document.getElementById('auth-error').innerText = 'Ошибка инициализации клиента';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initAuth);
+
+        async function verifyOtpCode() {
+            const code = document.getElementById('otp-input').value.trim();
+            const errorBox = document.getElementById('auth-error');
+            errorBox.innerText = '';
+
+            if (code.length !== 6) {
+                errorBox.innerText = 'Введите корректный 6-значный код';
+                return;
+            }
+
+            // Здесь ваш скрипт/бэкенд должен сверить код с базой (например, таблица telegram_auth_codes)
+            // Пример запроса к вашей таблице кодов в Supabase:
+            try {
+                const { data, error } = await supabaseClient
+                    .from('telegram_auth_codes')
+                    .select('*')
+                    .eq('code', code)
+                    .eq('is_used', false)
+                    .single();
+
+                if (error || !data) {
+                    errorBox.innerText = 'Неверный или просроченный код';
+                    return;
+                }
+
+                verifiedTelegramData = data; // Сохраняем данные (telegram_id, etc.)
+
+                // Проверяем, есть ли уже профиль с таким telegram_id в базе profiles
+                const { data: existingProfile } = await supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('telegram_id', data.telegram_id)
+                    .single();
+
+                // Помечаем код как использованный
+                await supabaseClient.from('telegram_auth_codes').update({ is_used: true }).eq('id', data.id);
+
+                if (existingProfile) {
+                    // Пользователь уже зарегистрирован — авторизуем в Supabase Auth / сессии
+                    // Создаем фиктивный токен или входим под капотом (через Custom Supabase JWT или сохранение ID в localStorage)
+                    localStorage.setItem('coolx_user_id', existingProfile.id);
+                    location.href = 'profile.html';
+                } else {
+                    // Новый пользователь — просим ввести юзернейм
+                    document.getElementById('step-code').style.display = 'none';
+                    document.getElementById('step-register').style.display = 'block';
+                }
+
+            } catch (err) {
+                console.error(err);
+                errorBox.innerText = 'Ошибка проверки кода на сервере';
+            }
+        }
+
+        async function completeRegistration() {
+            const username = document.getElementById('username-input').value.trim();
+            const errorBox = document.getElementById('auth-error');
+            
+            if (!username || username.length < 3) {
+                errorBox.innerText = 'Никнейм должен быть длиннее 2 символов';
+                return;
+            }
+
+            try {
+                // Создаем профиль в базе Supabase
+                const newUserId = crypto.randomUUID(); // Либо генерирует бэкенд
+                const { error } = await supabaseClient.from('profiles').insert({
+                    id: newUserId,
+                    telegram_id: verifiedTelegramData.telegram_id,
+                    username: username,
+                    balance_stars: 0,
+                    rating: 5.0
+                });
+
+                if (error) {
+                    errorBox.innerText = 'Ошибка создания профиля (возможно, ник занят)';
+                    return;
+                }
+
+                localStorage.setItem('coolx_user_id', newUserId);
+                location.href = 'profile.html';
+
+            } catch (err) {
+                errorBox.innerText = 'Ошибка регистрации';
+            }
+        }
+    </script>
+</body>
+</html>
