@@ -220,7 +220,7 @@
   <script>
     const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT.supabase.co';
     const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let isOwner = false;
     let targetUserId = null;
@@ -228,7 +228,7 @@
 
     async function initProfilePage() {
       // 1. Получаем текущего авторизованного сессией юзера
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabaseClient.auth.getUser();
       currentAuthUser = user?.id || 'demo_my_id'; // Резерв для теста
 
       // 2. Достаем ID из URL вида profile.html?id=20577142
@@ -247,7 +247,7 @@
     }
 
     async function loadUserProfileData() {
-      const { data: profile, error } = await supabase
+      const { data: profile, error } = await supabaseClient
         .from('profiles')
         .select('*')
         .eq('id', targetUserId)
@@ -334,19 +334,19 @@
       contentBox.innerHTML = `<div class="empty-state">Загрузка данных...</div>`;
 
       if (tabType === 'active_items') {
-        const { data } = await supabase.from('items').select('*').eq('seller_id', targetUserId).eq('status', 'active');
+        const { data } = await supabaseClient.from('items').select('*').eq('seller_id', targetUserId).eq('status', 'active');
         renderItemsList(data);
       } 
       else if (tabType === 'closed_items') {
-        const { data } = await supabase.from('items').select('*').eq('seller_id', targetUserId).eq('status', 'sold');
+        const { data } = await supabaseClient.from('items').select('*').eq('seller_id', targetUserId).eq('status', 'sold');
         renderItemsList(data);
       } 
       else if (tabType === 'received_reviews') {
-        const { data } = await supabase.from('reviews').select('*, profiles!reviews_from_user_id_fkey(username)').eq('to_user_id', targetUserId);
+        const { data } = await supabaseClient.from('reviews').select('*, profiles!reviews_from_user_id_fkey(username)').eq('to_user_id', targetUserId);
         renderReviewsList(data, 'from');
       } 
       else if (tabType === 'left_reviews') {
-        const { data } = await supabase.from('reviews').select('*, profiles!reviews_to_user_id_fkey(username)').eq('from_user_id', targetUserId);
+        const { data } = await supabaseClient.from('reviews').select('*, profiles!reviews_to_user_id_fkey(username)').eq('from_user_id', targetUserId);
         renderReviewsList(data, 'to');
       }
     }
@@ -387,7 +387,6 @@
 
     initProfilePage();
   </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <!-- Защищенная подгрузка Telegram SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
