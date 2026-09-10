@@ -64,7 +64,6 @@
 
     .main-container { max-width: 650px; margin: 0 auto; padding: 20px 16px; }
 
-    /* Поиск и фильтры */
     .search-box {
       width: 100%;
       background: var(--card-bg);
@@ -146,14 +145,14 @@
   </nav>
 
   <script>
-    const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT.supabase.co';
-    const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_URL = window.SUPABASE_URL || SUPABASE_URL;
+    const SUPABASE_KEY = window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let allItems = [];
 
     async function loadCatalog() {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('items')
         .select('*, profiles(username)')
         .eq('status', 'active');
@@ -201,12 +200,8 @@
 
     loadCatalog();
   </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
-  <!-- Защищенная подгрузка Telegram SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
-
-  <!-- Подключаем чистые имена JS без дефисов -->
   <script src="/api/apiclient.js"></script>
   <script src="/api/tgapp.js"></script>
   <script src="/api/profilelogic.js"></script>
