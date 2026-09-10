@@ -1,3 +1,7 @@
+export default function handler(req, res) {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.status(200).send(`
+
 // js/apiclient.js
 
 /**
@@ -34,4 +38,7 @@ async function apiConfirmDeal(buyerId, dealId) {
     body: JSON.stringify({ buyerId, dealId })
   });
   return await res.json();
+}
+
+`);
 }
