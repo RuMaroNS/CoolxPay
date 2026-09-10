@@ -8,6 +8,54 @@ const supabase = createClient(
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
+// --- ЛОГИКА АВТОРИЗАЦИИ (Генерация OTP-кодов) ---
+bot.command(['start', 'login'], async (ctx) => {
+  try {
+    const telegramId = ctx.from.id;
+    
+    // 1. Генерируем случайный 6-значный код (от 000000 до 999999)
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // 2. Помечаем старые неиспользованные коды этого юзера как использованные (опционально)
+    await supabase
+      .from('telegram_auth_codes')
+      .update({ is_used: true })
+      .eq('telegram_id', telegramId)
+      .eq('is_used', false);
+
+    // 3. Записываем новый код в таблицу telegram_auth_codes
+    const { error } = await supabase
+      .from('telegram_auth_codes')
+      .insert({
+        telegram_id: telegramId,
+        code: code,
+        is_used: false
+      });
+
+    if (error) {
+      console.error('Supabase Auth Code Error:', error);
+      await ctx.reply('❌ Ошибка при генерации кода авторизации. Попробуйте позже.');
+      return;
+    }
+
+    // 4. Отправляем код пользователю
+    const messageText = 
+      `🔐 *Авторизация на Coolx Pay*\n\n` +
+      `Ваш одноразовый код подтверждения:\n` +
+      `\`${code}\`\n\n` +
+      `Введите этот код на сайте для входа. Код действителен до первой попытки входа.`;
+
+    await ctx.reply(messageText, { parse_mode: 'Markdown' });
+
+  } catch (err) {
+    console.error('Auth Command Error:', err);
+    await ctx.reply('❌ Произошла ошибка при обработке команды.');
+  }
+});
+
+
+// --- ЛОГИКА ОПЛАТЫ ( Telegram Stars ) ---
+
 // Подтверждение оплаты до списания
 bot.on('pre_checkout_query', (ctx) => ctx.answerPreCheckoutQuery(true));
 
@@ -49,6 +97,7 @@ bot.on('successful_payment', async (ctx) => {
   }
 });
 
+// --- ЭКСПОРТ ДЛЯ VERCEL SERVERLESS FUNCTION ---
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     await bot.handleUpdate(req.body, res);
