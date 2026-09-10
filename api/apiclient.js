@@ -1,4 +1,4 @@
-// js/api-client.js
+// js/apiclient.js
 
 /**
  * Создает инвойс для пополнения Stars
@@ -16,7 +16,7 @@ async function apiDepositStars(userId, starsAmount) {
  * Покупка лота через Гарант (заморозка)
  */
 async function apiBuyItem(buyerId, itemId) {
-  const res = await fetch('/api/buy-item', {
+  const res = await fetch('/api/buyitem', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ buyerId, itemId })
@@ -28,7 +28,7 @@ async function apiBuyItem(buyerId, itemId) {
  * Подтверждение сделки (выплата продавцу)
  */
 async function apiConfirmDeal(buyerId, dealId) {
-  const res = await fetch('/api/confirm-deal', {
+  const res = await fetch('/api/confirmdeal', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ buyerId, dealId })
