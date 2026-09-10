@@ -1,11 +1,34 @@
 {
   "version": 2,
   "cleanUrls": true,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/js/(.*)", "destination": "/js/$1" },
-    { "source": "/users/(.*)", "destination": "/public/profile.html?id=$1" },
-    { "source": "/", "destination": "/public/index.html" },
-    { "source": "/(.*)", "destination": "/public/$1" }
+  "functions": {
+    "api/config.js": {
+      "memory": 1024
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/config",
+      "dest": "/api/config.js"
+    },
+    {
+      "src": "/api/(.*\\.js)",
+      "dest": "/public/api/$1",
+      "headers": {
+        "content-type": "application/javascript"
+      }
+    },
+    {
+      "src": "/users/(.*)",
+      "dest": "/public/profile.html?id=$1"
+    },
+    {
+      "src": "/",
+      "dest": "/public/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
   ]
 }
