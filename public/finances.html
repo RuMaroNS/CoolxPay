@@ -103,24 +103,22 @@
   </nav>
 
   <script>
-    const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT.supabase.co';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_URL = window.SUPABASE_URL || SUPABASE_URL;
+    const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let currentUserId = null;
 
     async function initFinances() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await supabaseClient.auth.getUser();
       currentUserId = user?.id || 'demo_user';
 
-      // Загрузка баланса
-      const { data: profile } = await supabase.from('profiles').select('balance_stars').eq('id', currentUserId).single();
+      const { data: profile } = await supabaseClient.from('profiles').select('balance_stars').eq('id', currentUserId).single();
       if (profile) {
         document.getElementById('my-stars-balance').innerText = `★ ${profile.balance_stars || 0}`;
       }
 
-      // Загрузка истории транзакций
-      const { data: transactions } = await supabase.from('transactions').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
+      const { data: transactions } = await supabaseClient.from('transactions').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
       const container = document.getElementById('history-box');
 
       if (!transactions || transactions.length === 0) {
@@ -150,7 +148,7 @@
         return;
       }
 
-      const { error } = await supabase.from('payout_requests').insert({
+      const { error } = await supabaseClient.from('payout_requests').insert({
         user_id: currentUserId,
         amount_stars: amount,
         target_details: target,
@@ -167,12 +165,8 @@
 
     initFinances();
   </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
-  <!-- Защищенная подгрузка Telegram SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
-
-  <!-- Подключаем чистые имена JS без дефисов -->
   <script src="/api/apiclient.js"></script>
   <script src="/api/tgapp.js"></script>
   <script src="/api/profilelogic.js"></script>
