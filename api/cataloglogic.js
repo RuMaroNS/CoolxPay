@@ -1,7 +1,6 @@
 export default function handler(req, res) {
   res.setHeader('Content-Type', 'application/javascript');
   res.status(200).send(`
-
 // js/cataloglogic.js
 
 async function loadCatalogItems(supabaseClient, category = null) {
@@ -19,18 +18,17 @@ async function loadCatalogItems(supabaseClient, category = null) {
   const container = document.getElementById('catalog-items-list');
 
   if (error || !items || items.length === 0) {
-    container.innerHTML = `<div style="grid-column: span 2; text-align: center; color: var(--text-gray); padding: 30px 0;">Лоты не найдены</div>`;
+    container.innerHTML = '<div style="grid-column: span 2; text-align: center; color: var(--text-gray); padding: 30px 0;">Лоты не найдены</div>';
     return;
   }
 
-  container.innerHTML = items.map(item => `
-    <div class="item-card" onclick="location.href='item.html?id=${item.id}'">
-      <div class="item-cat">${item.category}</div>
-      <div class="item-title">${item.title}</div>
-      <div class="item-price">★ ${item.price_stars}</div>
+  container.innerHTML = items.map(item => \`
+    <div class="item-card" onclick="location.href='item.html?id=\${item.id}'">
+      <div class="item-cat">\${item.category}</div>
+      <div class="item-title">\${item.title}</div>
+      <div class="item-price">★ \${item.price_stars}</div>
     </div>
-  `).join('');
+  \`).join('');
 }
-
-`);
+  `);
 }
