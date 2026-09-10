@@ -1,3 +1,7 @@
+export default function handler(req, res) {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.status(200).send(`
+
 // js/cataloglogic.js
 
 async function loadCatalogItems(supabaseClient, category = null) {
@@ -26,4 +30,7 @@ async function loadCatalogItems(supabaseClient, category = null) {
       <div class="item-price">★ ${item.price_stars}</div>
     </div>
   `).join('');
+}
+
+`);
 }
