@@ -100,7 +100,7 @@
   <main class="main-container">
     <div class="hero-banner">
       <div class="hero-title">Маркетплейс & Гарант</div>
-      <div class="hero-desc">Безопасные сделки цифровых товаров и услуг за Telegram Stars. Автоматический удержание средств на время сделки.</div>
+      <div class="hero-desc">Безопасные сделки цифровых товаров и услуг за Telegram Stars. Автоматическое удержание средств на время сделки.</div>
       <button class="create-item-btn" onclick="location.href='create-item.html'">+ Продать лот</button>
     </div>
 
@@ -131,11 +131,26 @@
   </nav>
 
   <script>
-    const SUPABASE_URL = window.SUPABASE_URL || SUPABASE_URL;
-    const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let supabaseClient = null;
+
+    async function initApp() {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+
+        supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+          auth: { persistSession: false }
+        });
+
+        loadRecentItems();
+      } catch (err) {
+        console.error("Ошибка инициализации Supabase:", err);
+      }
+    }
 
     async function loadRecentItems() {
+      if (!supabaseClient) return;
+
       const { data: items } = await supabaseClient
         .from('items')
         .select('*')
@@ -162,7 +177,7 @@
       `).join('');
     }
 
-    loadRecentItems();
+    document.addEventListener('DOMContentLoaded', initApp);
   </script>
   
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
