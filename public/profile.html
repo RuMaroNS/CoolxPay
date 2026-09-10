@@ -56,7 +56,6 @@
 
     .main-container { max-width: 650px; margin: 0 auto; padding: 20px 16px; }
 
-    /* Профиль карточка */
     .profile-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -105,7 +104,6 @@
     .stat-val { font-family: var(--font-brand); font-size: 0.95rem; color: var(--accent-cyan); }
     .stat-label { font-size: 0.68rem; color: var(--text-gray); text-transform: uppercase; }
 
-    /* Блок баланса (только для хозяина) */
     .balance-box {
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid var(--card-border);
@@ -122,7 +120,6 @@
       font-size: 0.75rem; cursor: pointer;
     }
 
-    /* Табы управления фильтрами */
     .tabs-container {
       display: flex; gap: 8px; overflow-x: auto;
       padding-bottom: 10px; margin-bottom: 16px;
@@ -142,7 +139,6 @@
       background: var(--grad-coolx); color: #fff; border-color: transparent;
     }
 
-    /* Карточки товаров и отзывов */
     .content-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .reviews-list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -188,12 +184,10 @@
   </header>
 
   <main class="main-container">
-    <!-- Инфо профиля -->
     <div class="profile-card" id="profile-card">
       <div class="empty-state">Загрузка профиля...</div>
     </div>
 
-    <!-- Баланс (Динамически показывается ТОЛЬКО владельцу) -->
     <div class="balance-box" id="my-balance-box" style="display: none;">
       <div>
         <div style="font-size: 0.75rem; color: var(--text-gray); margin-bottom: 2px;">Ваш баланс Stars</div>
@@ -202,10 +196,7 @@
       <button class="action-btn" onclick="location.href='finances.html'">Вывести</button>
     </div>
 
-    <!-- Переключатель Табов -->
     <div class="tabs-container" id="tabs-container"></div>
-
-    <!-- Контент активного таба -->
     <div id="tab-content" class="content-grid"></div>
   </main>
 
@@ -218,25 +209,34 @@
   </nav>
 
   <script>
-    // Подхватываем переданные в окружении переменные / конфиг
-    const SUPABASE_URL = window.SUPABASE_URL || SUPABASE_URL;
-    const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+    let supabaseClient = null;
     let isOwner = false;
     let targetUserId = null;
-    let currentAuthUser = null;
+
+    async function initApp() {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+
+        supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+          auth: { persistSession: false }
+        });
+
+        initProfilePage();
+      } catch (err) {
+        console.error("Ошибка инициализации Supabase:", err);
+      }
+    }
 
     async function initProfilePage() {
-      // 1. Получаем текущего авторизованного сессией юзера
-      const { data: { user } } = await supabaseClient.auth.getUser();
-      currentAuthUser = user?.id || 'demo_my_id'; 
+      if (!supabaseClient) return;
 
-      // 2. Достаем ID из URL вида profile.html?id=20577142
+      const { data: { user } } = await supabaseClient.auth.getUser();
+      const currentAuthUser = user?.id || 'demo_my_id'; 
+
       const urlParams = new URLSearchParams(window.location.search);
       targetUserId = urlParams.get('id');
 
-      // Если ID в URL нет или он совпадает с текущим -> это МОЙ профиль
       if (!targetUserId || targetUserId === currentAuthUser) {
         isOwner = true;
         targetUserId = currentAuthUser;
@@ -259,7 +259,6 @@
         return;
       }
 
-      // Определение визуального статуса
       let statusClass = 'status-offline';
       let statusText = 'Не в сети';
 
@@ -273,7 +272,6 @@
         statusText = `Был(а) недавно (${new Date(profile.last_seen).toLocaleDateString()})`;
       }
 
-      // Отрисовка основной карточки
       document.getElementById('profile-card').innerHTML = `
         <div class="avatar-container">
           <div class="avatar-wrapper">
@@ -296,7 +294,6 @@
         </div>
       `;
 
-      // Показываем баланс только владельцу
       if (isOwner) {
         document.getElementById('my-balance-box').style.display = 'flex';
         document.getElementById('user-balance').innerText = `★ ${profile.balance_stars || 0}`;
@@ -342,11 +339,11 @@
       } 
       else if (tabType === 'received_reviews') {
         const { data } = await supabaseClient.from('reviews').select('*, profiles!reviews_from_user_id_fkey(username)').eq('to_user_id', targetUserId);
-        renderReviewsList(data, 'from');
+        renderReviewsList(data);
       } 
       else if (tabType === 'left_reviews') {
         const { data } = await supabaseClient.from('reviews').select('*, profiles!reviews_to_user_id_fkey(username)').eq('from_user_id', targetUserId);
-        renderReviewsList(data, 'to');
+        renderReviewsList(data);
       }
     }
 
@@ -366,7 +363,7 @@
       `).join('');
     }
 
-    function renderReviewsList(reviews, direction) {
+    function renderReviewsList(reviews) {
       const container = document.getElementById('tab-content');
       if (!reviews || reviews.length === 0) {
         container.innerHTML = `<div class="empty-state">Отзывов пока нет</div>`;
@@ -384,7 +381,7 @@
       `).join('');
     }
 
-    initProfilePage();
+    document.addEventListener('DOMContentLoaded', initApp);
   </script>
   
   <script src="https://telegram.org/js/telegram-web-app.js" onerror="window.Telegram = { WebApp: { ready: ()=>{}, expand: ()=>{} } };"></script>
