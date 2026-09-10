@@ -7,6 +7,10 @@
     { "source": "/api/buyitem", "destination": "/api/buyitem.js" },
     { "source": "/api/confirmdeal", "destination": "/api/confirmdeal.js" },
     { "source": "/api/deposit", "destination": "/api/deposit.js" },
+    { "source": "/api/tgapp(.*)", "destination": "/js/tgapp.js" },
+    { "source": "/api/apiclient(.*)", "destination": "/js/apiclient.js" },
+    { "source": "/api/cataloglogic(.*)", "destination": "/js/cataloglogic.js" },
+    { "source": "/api/profilelogic(.*)", "destination": "/js/profilelogic.js" },
     { "source": "/users/(.*)", "destination": "/profile.html?id=$1" },
     { "source": "/", "destination": "/index.html" }
   ]
