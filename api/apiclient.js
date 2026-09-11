@@ -2,22 +2,8 @@ export default function handler(req, res) {
   res.setHeader('Content-Type', 'application/javascript');
   res.status(200).send(`
 
-// js/apiclient.js
-
 /**
- * Создает инвойс для пополнения Stars
- */
-async function apiDepositStars(userId, starsAmount) {
-  const res = await fetch('/api/deposit', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId, starsAmount: Number(starsAmount) })
-  });
-  return await res.json();
-}
-
-/**
- * Покупка лота через Гарант (заморозка)
+ * Запрос вызова оплаты товара (Бот присылает чек Stars в ЛС)
  */
 async function apiBuyItem(buyerId, itemId) {
   const res = await fetch('/api/buyitem', {
@@ -29,13 +15,25 @@ async function apiBuyItem(buyerId, itemId) {
 }
 
 /**
- * Подтверждение сделки (выплата продавцу)
+ * Подтверждение получения товара (Переводит заморозку в 20 дней)
  */
 async function apiConfirmDeal(buyerId, dealId) {
   const res = await fetch('/api/confirmdeal', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ buyerId, dealId })
+  });
+  return await res.json();
+}
+
+/**
+ * Отправка заявки на вывод Stars
+ */
+async function apiRequestPayout(userId, amount, target) {
+  const res = await fetch('/api/requestpayout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, amount: Number(amount), target })
   });
   return await res.json();
 }
