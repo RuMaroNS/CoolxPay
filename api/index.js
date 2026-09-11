@@ -11,7 +11,7 @@ const ADMIN_TG_ID = 8623982085;
 
 // === НАСТРОЙКА ЛОГИКИ TELEGRAF БОТА ===
 
-// 1. Команда авторизации
+// 1. Команда авторизации (/start, /login)
 bot.command(['start', 'login'], async (ctx) => {
   try {
     const telegramId = ctx.from.id;
@@ -36,71 +36,86 @@ bot.command(['start', 'login'], async (ctx) => {
   }
 });
 
-// 2. Оплата Stars (pre_checkout & successful_payment)
+// 2. Предварительная проверка оплаты (обязательно для Telegram Stars)
 bot.on('pre_checkout_query', (ctx) => ctx.answerPreCheckoutQuery(true));
 
+// 3. Обработка успешной оплаты Stars
 bot.on('successful_payment', async (ctx) => {
   try {
     const payment = ctx.message.successful_payment;
     const payload = JSON.parse(payment.invoice_payload);
 
-    if (payload.type === 'buy_item') {
-      const { buyerId, sellerId, itemId, priceStars } = payload;
-      const sellerEarned = Math.floor(priceStars * 0.86);
+    // Достаем короткие ключи (bId и iId)
+    const buyerId = payload.bId;
+    const itemId = payload.iId;
 
-      const { data: seller } = await supabase
-        .from('profiles')
-        .select('frozen_by_order')
-        .eq('id', sellerId)
-        .single();
+    if (!buyerId || !itemId) return;
 
-      const newFrozenOrder = (seller?.frozen_by_order || 0) + sellerEarned;
+    // Получаем полные данные о лоте из Supabase
+    const { data: item } = await supabase
+      .from('items')
+      .select('*')
+      .eq('id', itemId)
+      .single();
 
-      await supabase
-        .from('profiles')
-        .update({ frozen_by_order: newFrozenOrder })
-        .eq('id', sellerId);
+    if (!item) return;
 
-      await supabase
-        .from('items')
-        .update({ status: 'in_deal' })
-        .eq('id', itemId);
+    const priceStars = Number(item.price_stars);
+    const sellerId = item.seller_id;
+    const sellerEarned = Math.floor(priceStars * 0.86);
 
-      const { data: deal } = await supabase
-        .from('deals')
-        .insert({
-          item_id: itemId,
-          buyer_id: buyerId,
-          seller_id: sellerId,
-          amount_stars: priceStars,
-          status: 'escrow'
-        })
-        .select()
-        .single();
+    const { data: seller } = await supabase
+      .from('profiles')
+      .select('frozen_by_order')
+      .eq('id', sellerId)
+      .single();
 
-      await supabase.from('transactions').insert([
-        {
-          user_id: buyerId,
-          order_id: deal ? deal.id : null,
-          type_title: 'Покупка: Успешная оплата',
-          amount: -priceStars
-        },
-        {
-          user_id: sellerId,
-          order_id: deal ? deal.id : null,
-          type_title: 'Продажа: Заморожено по заказу',
-          amount: sellerEarned
-        }
-      ]);
+    const newFrozenOrder = (seller?.frozen_by_order || 0) + sellerEarned;
 
-      await ctx.reply(`✅ Оплата прошла успешно!\nПерейдите на сайт в раздел "Чаты" для получения товара.`);
-    }
+    await supabase
+      .from('profiles')
+      .update({ frozen_by_order: newFrozenOrder })
+      .eq('id', sellerId);
+
+    await supabase
+      .from('items')
+      .update({ status: 'in_deal' })
+      .eq('id', itemId);
+
+    const { data: deal } = await supabase
+      .from('deals')
+      .insert({
+        item_id: itemId,
+        buyer_id: buyerId,
+        seller_id: sellerId,
+        amount_stars: priceStars,
+        status: 'escrow'
+      })
+      .select()
+      .single();
+
+    await supabase.from('transactions').insert([
+      {
+        user_id: buyerId,
+        order_id: deal ? deal.id : null,
+        type_title: 'Покупка: Успешная оплата',
+        amount: -priceStars
+      },
+      {
+        user_id: sellerId,
+        order_id: deal ? deal.id : null,
+        type_title: 'Продажа: Заморожено по заказу',
+        amount: sellerEarned
+      }
+    ]);
+
+    await ctx.reply(`✅ Оплата прошла успешно!\nПерейдите на сайт в раздел "Чаты" для получения товара.`);
   } catch (err) {
     console.error('Successful Payment Error:', err);
   }
 });
 
-// 3. Админ-кнопки выплат
+// 4. Админ-кнопки выплат
 bot.on('callback_query', async (ctx) => {
   try {
     const data = ctx.callbackQuery.data;
@@ -195,7 +210,6 @@ bot.on('callback_query', async (ctx) => {
 // === ЕДИНЫЙ ТОЧЕЧНЫЙ ОБРАБОТЧИК ЗАПРОСОВ (ROUTER) ===
 
 export default async function handler(req, res) {
-  // Вытаскиваем путь запроса
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = url.pathname;
 
@@ -203,7 +217,8 @@ export default async function handler(req, res) {
     // 1. Webhook от Telegram
     if (pathname === '/api/botwebhook' || pathname === '/api') {
       if (req.method === 'POST') {
-        await bot.handleUpdate(req.body, res);
+        const update = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+        await bot.handleUpdate(update, res);
         return;
       }
       return res.status(200).send('Webhook active');
@@ -214,27 +229,54 @@ export default async function handler(req, res) {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
       const { buyerId, itemId } = req.body;
 
-      const { data: item } = await supabase.from('items').select('*').eq('id', itemId).single();
-      if (!item || item.status !== 'active') return res.status(400).json({ error: 'Лот недоступен' });
+      if (!buyerId || !itemId) {
+        return res.status(400).json({ error: 'Неверные параметры запроса' });
+      }
 
-      const { data: buyer } = await supabase.from('profiles').select('telegram_id').eq('id', buyerId).single();
-      if (!buyer || !buyer.telegram_id) return res.status(400).json({ error: 'Telegram ID не привязан' });
+      const { data: item, error: itemErr } = await supabase
+        .from('items')
+        .select('*')
+        .eq('id', itemId)
+        .single();
 
+      if (itemErr || !item || item.status !== 'active') {
+        return res.status(400).json({ error: 'Лот недоступен или уже выкуплен' });
+      }
+
+      if (item.seller_id === buyerId) {
+        return res.status(400).json({ error: 'Нельзя купить собственный лот' });
+      }
+
+      const { data: buyer, error: buyerErr } = await supabase
+        .from('profiles')
+        .select('telegram_id')
+        .eq('id', buyerId)
+        .single();
+
+      if (buyerErr || !buyer || !buyer.telegram_id) {
+        return res.status(400).json({ error: 'Telegram ID не привязан. Авторизуйтесь через бота.' });
+      }
+
+      const chatId = Number(buyer.telegram_id);
+      const priceAmount = Math.round(Number(item.price_stars));
+
+      if (isNaN(chatId)) {
+        return res.status(400).json({ error: 'Некорректный Telegram ID пользователя' });
+      }
+
+      // Сжатый payload до 128 байт для предотвращения ошибки INVOICE_PAYLOAD_INVALID
       const invoicePayload = JSON.stringify({
-        type: 'buy_item',
-        buyerId,
-        sellerId: item.seller_id,
-        itemId: item.id,
-        priceStars: Number(item.price_stars)
+        bId: buyerId,
+        iId: itemId
       });
 
-      await bot.telegram.sendInvoice(buyer.telegram_id, {
-        title: `Покупка: ${item.title}`,
-        description: `Оплата лота через гарант-сервис Coolx Pay`,
+      await bot.telegram.sendInvoice(chatId, {
+        title: `Покупка: ${item.title}`.substring(0, 32),
+        description: `Оплата лота через гарант-сервис Coolx Pay`.substring(0, 255),
         payload: invoicePayload,
-        provider_token: '',
+        provider_token: '', // Пусто для Telegram Stars (XTR)
         currency: 'XTR',
-        prices: [{ label: item.title, amount: Number(item.price_stars) }]
+        prices: [{ label: 'Оплата Stars', amount: priceAmount }]
       });
 
       return res.status(200).json({ success: true, message: 'Чек отправлен в бота!' });
@@ -329,7 +371,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 5. Конфиг (config)
+    // 5. Конфигурационные данные (config)
     if (pathname === '/api/config') {
       return res.status(200).json({
         SUPABASE_URL: process.env.SUPABASE_URL,
@@ -337,7 +379,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 6. Файл клиенсткого скрипта (apiclient.js)
+    // 6. Виртуальный файл JS-клиента (apiclient.js)
     if (pathname === '/api/apiclient' || pathname === '/api/apiclient.js') {
       res.setHeader('Content-Type', 'application/javascript');
       return res.status(200).send(`
@@ -371,7 +413,8 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Endpoint Not Found' });
 
   } catch (err) {
-    console.error('API Error:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    console.error('API Error Details:', err.response || err);
+    const message = err.description || err.message || 'Internal Server Error';
+    return res.status(500).json({ error: message });
   }
 }
