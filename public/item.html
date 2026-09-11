@@ -82,94 +82,114 @@
     <a href="profile.html" class="nav-link"><span class="nav-icon">👤</span><span>Профиль</span></a>
   </nav>
 
-  <script>
-    let supabaseClient = null;
-    let currentUserId = null;
-    let currentItem = null;
+  <script src="/api/apiclient.js"></script>
+<script>
+  let supabaseClient = null;
+  let currentUserId = null;
+  let currentItem = null;
 
-    async function initApp() {
-      try {
-        const res = await fetch('/api/config');
-        const config = await res.json();
-        supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-          auth: { persistSession: false }
-        });
+  async function initApp() {
+    try {
+      const res = await fetch('/api/config');
+      const config = await res.json();
+      supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+        auth: { persistSession: false }
+      });
 
-        currentUserId = localStorage.getItem('coolx_user_id');
-        loadItemDetails();
-      } catch (err) {
-        console.error("Ошибка инициализации:", err);
-      }
+      currentUserId = localStorage.getItem('coolx_user_id');
+      loadItemDetails();
+    } catch (err) {
+      console.error("Ошибка инициализации:", err);
+    }
+  }
+
+  async function loadItemDetails() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const itemId = urlParams.get('id');
+    const container = document.getElementById('item-container');
+
+    if (!itemId) {
+      container.innerHTML = `<div style="text-align: center; color: var(--text-gray);">Лот не найден</div>`;
+      return;
     }
 
-    async function loadItemDetails() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const itemId = urlParams.get('id');
-      const container = document.getElementById('item-container');
+    const { data: item, error } = await supabaseClient
+      .from('items')
+      .select('*, profiles(id, username)')
+      .eq('id', itemId)
+      .single();
 
-      if (!itemId) {
-        container.innerHTML = `<div style="text-align: center; color: var(--text-gray);">Лот не найден</div>`;
-        return;
-      }
+    if (error || !item) {
+      container.innerHTML = `<div style="text-align: center; color: var(--text-gray);">Лот не найден или был удален</div>`;
+      return;
+    }
 
-      const { data: item, error } = await supabaseClient
-        .from('items')
-        .select('*, profiles(id, username)')
-        .eq('id', itemId)
-        .single();
+    currentItem = item;
 
-      if (error || !item) {
-        container.innerHTML = `<div style="text-align: center; color: var(--text-gray);">Лот не найден или был удален</div>`;
-        return;
-      }
+    container.innerHTML = `
+      <div class="item-card">
+        <div class="item-category">${item.category}</div>
+        <div class="item-title">${item.title}</div>
+        <div class="item-price-box">★ ${item.price_stars}</div>
+        
+        <div class="item-desc-title">Описание лота</div>
+        <div class="item-desc">${item.description}</div>
 
-      currentItem = item;
-
-      container.innerHTML = `
-        <div class="item-card">
-          <div class="item-category">${item.category}</div>
-          <div class="item-title">${item.title}</div>
-          <div class="item-price-box">★ ${item.price_stars}</div>
-          
-          <div class="item-desc-title">Описание лота</div>
-          <div class="item-desc">${item.description}</div>
-
-          <div class="seller-box">
-            <div class="seller-info">
-              <div class="seller-avatar">${(item.profiles?.username || 'S')[0].toUpperCase()}</div>
-              <div>
-                <div class="seller-name">${item.profiles?.username || 'Продавец'}</div>
-                <div class="seller-status">Продавец на Coolx Pay</div>
-              </div>
+        <div class="seller-box">
+          <div class="seller-info">
+            <div class="seller-avatar">${(item.profiles?.username || 'S')[0].toUpperCase()}</div>
+            <div>
+              <div class="seller-name">${item.profiles?.username || 'Продавец'}</div>
+              <div class="seller-status">Продавец на Coolx Pay</div>
             </div>
-            <button style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); padding: 8px 14px; border-radius: 10px; color: #fff; font-size: 0.75rem; cursor: pointer;" onclick="location.href='profile.html?id=${item.profiles?.id}'">Профиль</button>
           </div>
-
-          <button class="buy-btn" onclick="startDeal()">КУПИТЬ (БЕЗОПАСНАЯ СДЕЛКА)</button>
+          <button style="background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); padding: 8px 14px; border-radius: 10px; color: #fff; font-size: 0.75rem; cursor: pointer;" onclick="location.href='profile.html?id=${item.profiles?.id}'">Профиль</button>
         </div>
-      `;
+
+        <button class="buy-btn" id="buy-btn" onclick="startDeal()">КУПИТЬ (БЕЗОПАСНАЯ СДЕЛКА)</button>
+      </div>
+    `;
+  }
+
+  async function startDeal() {
+    if (!currentUserId) {
+      alert('Для совершения сделки необходимо авторизоваться.');
+      window.location.href = 'auth.html';
+      return;
     }
 
-    async function startDeal() {
-      if (!currentUserId) {
-        alert('Для совершения сделки необходимо авторизоваться.');
-        window.location.href = 'auth.html';
-        return;
-      }
-
-      if (currentUserId === currentItem.seller_id) {
-        alert('Вы не можете купить собственный лот!');
-        return;
-      }
-
-      if (confirm(`Подтверждаете покупку лота "${currentItem.title}" за ★ ${currentItem.price_stars}?`)) {
-        // Здесь можно реализовать логику создания сделки в базе данных
-        alert('Сделка инициирована! Перенаправляем в чат с продавцом...');
-        location.href = `chat.html?user=${currentItem.seller_id}`;
-      }
+    if (currentUserId === currentItem.seller_id) {
+      alert('Вы не можете купить собственный лот!');
+      return;
     }
 
-    document.addEventListener('DOMContentLoaded', initApp);
-  </script>
+    if (!confirm(`Подтверждаете покупку лота "${currentItem.title}" за ★ ${currentItem.price_stars}?`)) {
+      return;
+    }
+
+    const btn = document.getElementById('buy-btn');
+    btn.disabled = true;
+    btn.innerText = 'ОТПРАВКА СЧЕТА В БОТА...';
+
+    try {
+      // Отправляем запрос на наш серверный эндпоинт
+      const result = await apiBuyItem(currentUserId, currentItem.id);
+
+      if (result.success) {
+        alert('Чек на оплату Stars успешно отправлен вам в Telegram-бота! Откройте бота для оплаты.');
+      } else {
+        alert('Ошибка при выставлении счета: ' + (result.error || 'Неизвестная ошибка'));
+      }
+    } catch (err) {
+      console.error('Buy error:', err);
+      alert('Ошибка соединения с сервером.');
+    } finally {
+      btn.disabled = false;
+      btn.innerText = 'КУПИТЬ (БЕЗОПАСНАЯ СДЕЛКА)';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', initApp);
+</script>
 </body>
 </html>
