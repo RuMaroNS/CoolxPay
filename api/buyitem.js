@@ -46,22 +46,30 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Telegram ID не привязан. Авторизуйтесь через бота.' });
     }
 
-    // 3. Формируем payload и отправляем официальный чек Telegram Stars
+    // Приводим Telegram ID к числу
+    const chatId = Number(buyer.telegram_id);
+    const priceAmount = Math.round(Number(item.price_stars));
+
+    if (isNaN(chatId)) {
+      return res.status(400).json({ error: 'Некорректный Telegram ID пользователя' });
+    }
+
+    // 3. Формируем payload и отправляем чек Telegram Stars
     const invoicePayload = JSON.stringify({
       type: 'buy_item',
       buyerId: buyerId,
       sellerId: item.seller_id,
       itemId: item.id,
-      priceStars: Number(item.price_stars)
+      priceStars: priceAmount
     });
 
-    await bot.telegram.sendInvoice(buyer.telegram_id, {
-      title: `Покупка: ${item.title}`,
-      description: `Оплата лота через гарант-сервис Coolx Pay`,
+    await bot.telegram.sendInvoice(chatId, {
+      title: `Покупка: ${item.title}`.substring(0, 32), // Telegram ограничивает длину title до 32 символов
+      description: `Оплата лота через гарант-сервис Coolx Pay`.substring(0, 255),
       payload: invoicePayload,
-      provider_token: '', // Пусто для Telegram Stars
+      provider_token: '', // Пусто для Telegram Stars (XTR)
       currency: 'XTR',
-      prices: [{ label: item.title, amount: Number(item.price_stars) }]
+      prices: [{ label: 'Оплата Stars', amount: priceAmount }]
     });
 
     return res.status(200).json({ 
@@ -70,7 +78,10 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
-    console.error('Buy Item Error:', err);
-    return res.status(500).json({ error: 'Ошибка сервера при отправке чека в бота' });
+    // Выводим точный текст ошибки от Telegram в логи Vercel
+    console.error('Buy Item Error Detail:', err.response || err);
+    
+    const message = err.description || err.message || 'Ошибка сервера при отправке чека в бота';
+    return res.status(500).json({ error: message });
   }
 }
