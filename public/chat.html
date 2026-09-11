@@ -33,7 +33,6 @@
 
     .main-container { max-width: 1000px; margin: 20px auto; padding: 0 16px; }
 
-    /* Окно мессенджера (3 колонки как на скрине) */
     .messenger-layout {
       display: grid;
       grid-template-columns: 280px 1fr 240px;
@@ -47,7 +46,7 @@
 
     @media (max-width: 850px) {
       .messenger-layout { grid-template-columns: 1fr; height: 80vh; }
-      .chat-sidebar, .chat-info-panel { display: none; } /* Для мобилок можно сделать переключение, тут показываем чат */
+      .chat-sidebar, .chat-info-panel { display: none; }
     }
 
     /* Левая колонка: Список чатов */
@@ -115,7 +114,7 @@
           <div style="margin: auto; text-align: center; color: var(--text-gray); font-size: 0.85rem;">Выберите чат слева для начала общения</div>
         </div>
         <div class="chat-input-box">
-          <input type="text" id="message-input" class="chat-input" placeholder="Написать сообщение...">
+          <input type="text" id="message-input" class="chat-input" placeholder="Написать сообщение..." onkeydown="if(event.key === 'Enter') sendMessage()">
           <button class="send-btn" onclick="sendMessage()">➔</button>
         </div>
       </div>
@@ -123,7 +122,7 @@
       <!-- Правая колонка: Информация -->
       <div class="chat-info-panel">
         <div class="info-title">Информация</div>
-        <p>Здесь отображаются данные о пользователе или сделке.</p>
+        <p>Безопасный чат сделок Coolx Pay в реальном времени.</p>
       </div>
     </div>
   </main>
@@ -140,6 +139,7 @@
     let supabaseClient = null;
     let currentUserId = null;
     let activeChatUser = null;
+    let messageSubscription = null;
 
     async function initApp() {
       try {
@@ -156,66 +156,119 @@
         }
 
         loadChats();
+
+        // Проверяем, не передан ли пользователь в URL (например, из страницы товара)
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetUser = urlParams.get('user');
+        if (targetUser) {
+          // Ищем имя пользователя для шапки и открываем чат
+          const { data: targetData } = await supabaseClient.from('profiles').select('username').eq('id', targetUser).single();
+          openChat(targetUser, targetData?.username || 'Пользователь');
+        }
+
       } catch (err) {
         console.error("Ошибка инициализации:", err);
       }
     }
 
     async function loadChats() {
-      // Пример загрузки списка пользователей, с кем были чаты или транзакции
       const { data, error } = await supabaseClient
         .from('profiles')
         .select('id, username')
         .neq('id', currentUserId)
-        .limit(10);
+        .limit(20);
 
       const listContainer = document.getElementById('chats-list');
       if (!data || data.length === 0) {
-        listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-gray); font-size: 0.8rem;">Нет активных чатов</div>`;
+        listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-gray); font-size: 0.8rem;">Нет доступных чатов</div>`;
         return;
       }
 
       listContainer.innerHTML = `<div class="sidebar-header">Диалоги</div>` + data.map(user => `
-        <div class="chat-item" onclick="openChat('${user.id}', '${user.username || 'Пользователь'}')">
+        <div class="chat-item" id="chat-item-${user.id}" onclick="openChat('${user.id}', '${user.username || 'Пользователь'}')">
           <div class="chat-avatar">${(user.username || 'U')[0].toUpperCase()}</div>
           <div class="chat-meta">
             <div class="chat-name">${user.username || 'Пользователь'}</div>
-            <div class="chat-lastmsg">Нажмите, чтобы открыть чат</div>
+            <div class="chat-lastmsg">Нажмите для общения</div>
           </div>
         </div>
       `).join('');
     }
 
-    function openChat(userId, username) {
+    async function openChat(userId, username) {
       activeChatUser = userId;
       document.getElementById('active-chat-title').innerText = username;
-      loadMessages();
+
+      // Подсветка активного в списке
+      document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
+      const activeEl = document.getElementById(`chat-item-${userId}`);
+      if (activeEl) activeEl.classList.add('active');
+
+      // Отписываемся от старого канала реального времени, если переключили чат
+      if (messageSubscription) {
+        supabaseClient.removeChannel(messageSubscription);
+      }
+
+      await loadMessages();
+      subscribeToRealtimeMessages();
     }
 
     async function loadMessages() {
       if (!activeChatUser) return;
-      // Логика загрузки сообщений из таблицы messages (если она у вас есть)
       const box = document.getElementById('messages-box');
       box.innerHTML = `<div style="text-align: center; color: var(--text-gray); font-size: 0.8rem; margin-top: 20px;">Загрузка сообщений...</div>`;
       
-      // Имитация / запрос к таблице сообщений
-      // Допустим, таблица messages хранит sender_id, receiver_id, text
-      const { data } = await supabaseClient
+      const { data, error } = await supabaseClient
         .from('messages')
         .select('*')
         .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${activeChatUser}),and(sender_id.eq.${activeChatUser},receiver_id.eq.${currentUserId})`)
         .order('created_at', { ascending: true });
 
       if (!data || data.length === 0) {
-        box.innerHTML = `<div style="text-align: center; color: var(--text-gray); font-size: 0.8rem; margin-top: 20px;">История сообщений пуста. Напишите первое сообщение!</div>`;
+        box.innerHTML = `<div style="text-align: center; color: var(--text-gray); font-size: 0.85rem; margin-top: 20px;">История пуста. Напишите сообщение!</div>`;
         return;
       }
 
-      box.innerHTML = data.map(m => `
-        <div class="message-bubble ${m.sender_id === currentUserId ? 'outgoing' : 'incoming'}">
-          ${m.text}
+      box.innerHTML = data.map(m => renderBubble(m)).join('');
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function renderBubble(m) {
+      const isOutgoing = m.sender_id === currentUserId;
+      return `
+        <div class="message-bubble ${isOutgoing ? 'outgoing' : 'incoming'}">
+          ${escapeHtml(m.text)}
         </div>
-      `).join('');
+      `;
+    }
+
+    // Подписка через веб-сокеты (Realtime)
+    function subscribeToRealtimeMessages() {
+      messageSubscription = supabaseClient
+        .channel(`chat_${currentUserId}_${activeChatUser}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        }, (payload) => {
+          const newMsg = payload.new;
+          // Проверяем, принадлежит ли прилетевшее сообщение текущему диалогу
+          if (
+            (newMsg.sender_id === currentUserId && newMsg.receiver_id === activeChatUser) ||
+            (newMsg.sender_id === activeChatUser && newMsg.receiver_id === currentUserId)
+          ) {
+            appendNewMessage(newMsg);
+          }
+        })
+        .subscribe();
+    }
+
+    function appendNewMessage(m) {
+      const box = document.getElementById('messages-box');
+      const emptyNotice = box.querySelector('div[style*="text-align: center"]');
+      if (emptyNotice) emptyNotice.remove();
+
+      box.innerHTML += renderBubble(m);
       box.scrollTop = box.scrollHeight;
     }
 
@@ -224,18 +277,24 @@
       const text = input.value.trim();
       if (!text || !activeChatUser) return;
 
+      // Сразу очищаем поле ввода для удобства
+      input.value = '';
+
       const { error } = await supabaseClient.from('messages').insert({
         sender_id: currentUserId,
         receiver_id: activeChatUser,
         text: text
       });
 
-      if (!error) {
-        input.value = '';
-        loadMessages();
-      } else {
+      if (error) {
+        console.error("Ошибка отправки:", error);
         alert('Не удалось отправить сообщение');
       }
+      // Благодаря Realtime сообщение отобразится автоматически сразу после вставки в БД
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
     document.addEventListener('DOMContentLoaded', initApp);
