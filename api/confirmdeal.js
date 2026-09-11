@@ -13,7 +13,11 @@ export default async function handler(req, res) {
   try {
     const { buyerId, dealId } = req.body;
 
-    // 1. Достаем сделку
+    if (!buyerId || !dealId) {
+      return res.status(400).json({ error: 'Некорректные данные' });
+    }
+
+    // 1. Проверяем сделку
     const { data: deal } = await supabase
       .from('deals')
       .select('*')
@@ -21,39 +25,60 @@ export default async function handler(req, res) {
       .single();
 
     if (!deal || deal.buyer_id !== buyerId || deal.status !== 'escrow') {
-      return res.status(400).json({ error: 'Сделка недоступна для закрытия' });
+      return res.status(400).json({ error: 'Сделка недоступна для подтверждения' });
     }
 
-    // 2. Получаем профиль продавца
+    const sellerEarned = Math.floor(deal.amount_stars * 0.86);
+
+    // 2. Достаем продавца
     const { data: seller } = await supabase
       .from('profiles')
-      .select('balance_stars, completed_deals')
+      .select('frozen_by_order, frozen_by_time, completed_deals')
       .eq('id', deal.seller_id)
       .single();
 
-    // 3. Выплачиваем Stars и обновляем счетчик сделок
+    // Дата разморозки: ТЕКУЩАЯ ДАТА + 20 ДНЕЙ
+    const unfreezeDate = new Date();
+    unfreezeDate.setDate(unfreezeDate.getDate() + 20);
+
+    const updatedFrozenOrder = Math.max(0, (seller?.frozen_by_order || 0) - sellerEarned);
+    const updatedFrozenTime = (seller?.frozen_by_time || 0) + sellerEarned;
+
+    // 3. Переводим деньги из "Заморожено по заказу" в "Заморожено от вывода на 20 дней"
     await supabase
       .from('profiles')
       .update({
-        balance_stars: (seller?.balance_stars || 0) + deal.amount_stars,
+        frozen_by_order: updatedFrozenOrder,
+        frozen_by_time: updatedFrozenTime,
+        unfreezes_at: unfreezeDate.toISOString(),
         completed_deals: (seller?.completed_deals || 0) + 1
       })
       .eq('id', deal.seller_id);
 
-    // 4. Обновляем статус сделки и лота
+    // 4. Закрываем статусы
     await supabase.from('deals').update({ status: 'completed' }).eq('id', dealId);
     await supabase.from('items').update({ status: 'sold' }).eq('id', deal.item_id);
 
-    // 5. Добавляем в историю продавца
-    await supabase.from('transactions').insert({
-      user_id: deal.seller_id,
-      type_title: 'Продажа товара (Завершено)',
-      amount: deal.amount_stars
-    });
+    // 5. Записываем транзакции
+    await supabase.from('transactions').insert([
+      {
+        user_id: deal.buyer_id,
+        order_id: dealId,
+        type_title: 'Покупка: Успешно завершено',
+        amount: -deal.amount_stars
+      },
+      {
+        user_id: deal.seller_id,
+        order_id: dealId,
+        type_title: 'Продажа: Успешно (Заморожено от вывода на 20 дней)',
+        amount: sellerEarned
+      }
+    ]);
 
-    return res.status(200).json({ success: true, message: 'Сделка успешно закрыта' });
+    return res.status(200).json({ success: true, message: 'Сделка завершена, запуск 20-дневной заморозки!' });
+
   } catch (err) {
     console.error('Confirm Deal Error:', err);
-    return res.status(500).json({ error: 'Ошибка сервера при закрытии сделки' });
+    return res.status(500).json({ error: 'Ошибка при закрытии сделки' });
   }
 }
