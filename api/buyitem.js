@@ -14,7 +14,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { buyerId, itemId } = req.body;
+    // Безопасно разбираем тело запроса
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const { buyerId, itemId } = body || {};
 
     if (!buyerId || !itemId) {
       return res.status(400).json({ error: 'Неверные параметры запроса' });
@@ -46,7 +48,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Telegram ID не привязан. Авторизуйтесь через бота.' });
     }
 
-    // Приводим Telegram ID к числу
     const chatId = Number(buyer.telegram_id);
     const priceAmount = Math.round(Number(item.price_stars));
 
@@ -54,17 +55,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Некорректный Telegram ID пользователя' });
     }
 
-    // 3. Формируем payload и отправляем чек Telegram Stars
+    // 3. Формируем СЖАТЫЙ payload (строго до 128 байт!)
     const invoicePayload = JSON.stringify({
-      type: 'buy_item',
-      buyerId: buyerId,
-      sellerId: item.seller_id,
-      itemId: item.id,
-      priceStars: priceAmount
+      bId: buyerId,
+      iId: itemId
     });
 
+    // 4. Отправляем чек в Telegram Stars
     await bot.telegram.sendInvoice(chatId, {
-      title: `Покупка: ${item.title}`.substring(0, 32), // Telegram ограничивает длину title до 32 символов
+      title: `Покупка: ${item.title}`.substring(0, 32),
       description: `Оплата лота через гарант-сервис Coolx Pay`.substring(0, 255),
       payload: invoicePayload,
       provider_token: '', // Пусто для Telegram Stars (XTR)
@@ -78,9 +77,9 @@ export default async function handler(req, res) {
     });
 
   } catch (err) {
-    // Выводим точный текст ошибки от Telegram в логи Vercel
     console.error('Buy Item Error Detail:', err.response || err);
     
+    // Перехватываем описание ошибки от Telegram API или отдаем базовую
     const message = err.description || err.message || 'Ошибка сервера при отправке чека в бота';
     return res.status(500).json({ error: message });
   }
