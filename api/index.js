@@ -9,9 +9,9 @@ const supabase = createClient(
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const ADMIN_TG_ID = 8623982085;
 
-// === НАСТРОЙКА ЛОГИКИ TELEGRAF БОТА ===
+// === ЛОГИКА TELEGRAF БОТА ===
 
-// 1. Команда авторизации (/start, /login)
+// 1. Команда авторизации
 bot.command(['start', 'login'], async (ctx) => {
   try {
     const telegramId = ctx.from.id;
@@ -36,7 +36,7 @@ bot.command(['start', 'login'], async (ctx) => {
   }
 });
 
-// 2. Предварительная проверка оплаты (обязательно для Telegram Stars)
+// 2. Предварительная проверка оплаты Stars
 bot.on('pre_checkout_query', (ctx) => ctx.answerPreCheckoutQuery(true));
 
 // 3. Обработка успешной оплаты Stars
@@ -45,13 +45,11 @@ bot.on('successful_payment', async (ctx) => {
     const payment = ctx.message.successful_payment;
     const payload = JSON.parse(payment.invoice_payload);
 
-    // Достаем короткие ключи (bId и iId)
     const buyerId = payload.bId;
     const itemId = payload.iId;
 
     if (!buyerId || !itemId) return;
 
-    // Получаем полные данные о лоте из Supabase
     const { data: item } = await supabase
       .from('items')
       .select('*')
@@ -206,28 +204,31 @@ bot.on('callback_query', async (ctx) => {
   }
 });
 
+// Адаптер для вебхуков Telegraf на Vercel
+const handleWebhook = bot.webhookCallback('/api/botwebhook');
 
-// === ЕДИНЫЙ ТОЧЕЧНЫЙ ОБРАБОТЧИК ЗАПРОСОВ (ROUTER) ===
+// === ЕДИНЫЙ ROUTER ДЛЯ VERCEL ===
 
 export default async function handler(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = url.pathname;
 
   try {
-    // 1. Webhook от Telegram
+    // 1. Обработка вебхуков Telegram
     if (pathname === '/api/botwebhook' || pathname === '/api') {
       if (req.method === 'POST') {
-        const update = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-        await bot.handleUpdate(update, res);
-        return;
+        return await handleWebhook(req, res);
       }
       return res.status(200).send('Webhook active');
     }
 
-    // 2. Отправка чека покупки (buyitem)
+    // 2. Отправка счета (buyitem)
     if (pathname === '/api/buyitem') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
-      const { buyerId, itemId } = req.body;
+
+      // Извлекаем body в зависимости от формата
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      const { buyerId, itemId } = body || {};
 
       if (!buyerId || !itemId) {
         return res.status(400).json({ error: 'Неверные параметры запроса' });
@@ -264,17 +265,17 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Некорректный Telegram ID пользователя' });
       }
 
-      // Сжатый payload до 128 байт для предотвращения ошибки INVOICE_PAYLOAD_INVALID
       const invoicePayload = JSON.stringify({
         bId: buyerId,
         iId: itemId
       });
 
+      // Прямой вызов Telegram API без участия Telegraf-роутера
       await bot.telegram.sendInvoice(chatId, {
         title: `Покупка: ${item.title}`.substring(0, 32),
         description: `Оплата лота через гарант-сервис Coolx Pay`.substring(0, 255),
         payload: invoicePayload,
-        provider_token: '', // Пусто для Telegram Stars (XTR)
+        provider_token: '',
         currency: 'XTR',
         prices: [{ label: 'Оплата Stars', amount: priceAmount }]
       });
@@ -285,7 +286,8 @@ export default async function handler(req, res) {
     // 3. Подтверждение сделки (confirmdeal)
     if (pathname === '/api/confirmdeal') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
-      const { buyerId, dealId } = req.body;
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      const { buyerId, dealId } = body || {};
 
       const { data: deal } = await supabase.from('deals').select('*').eq('id', dealId).single();
       if (!deal || deal.buyer_id !== buyerId || deal.status !== 'escrow') {
@@ -319,7 +321,8 @@ export default async function handler(req, res) {
     // 4. Запрос на вывод (requestpayout)
     if (pathname === '/api/requestpayout') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
-      const { userId, amount, target } = req.body;
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      const { userId, amount, target } = body || {};
 
       const { data: user } = await supabase.from('profiles').select('*').eq('id', userId).single();
       if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
@@ -371,7 +374,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 5. Конфигурационные данные (config)
+    // 5. Конфигурация (config)
     if (pathname === '/api/config') {
       return res.status(200).json({
         SUPABASE_URL: process.env.SUPABASE_URL,
@@ -379,7 +382,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 6. Виртуальный файл JS-клиента (apiclient.js)
+    // 6. Клиентский скрипт (apiclient.js)
     if (pathname === '/api/apiclient' || pathname === '/api/apiclient.js') {
       res.setHeader('Content-Type', 'application/javascript');
       return res.status(200).send(`
